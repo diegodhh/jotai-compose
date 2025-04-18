@@ -1,0 +1,1 @@
+{"version":3,"sources":["../src/index.ts"],"sourcesContent":["/** @format */\n\nexport type Test = \"test\";\nexport const test: Test = \"test\";\n"],"mappings":"4ZAAA,IAAAA,EAAA,GAAAC,EAAAD,EAAA,UAAAE,IAAA,eAAAC,EAAAH,GAGO,IAAME,EAAa","names":["index_exports","__export","test","__toCommonJS"]}
