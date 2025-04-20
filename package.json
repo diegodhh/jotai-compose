@@ -6,22 +6,24 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsup",
-    "watch": "tsup --watch"
+    "watch": "tsup --watch",
+    "prepare": "husky"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Diego Herrero",
+  "license": "MIT",
   "description": "",
   "devDependencies": {
     "@types/react": "^19.1.2",
+    "husky": "^9.1.7",
     "jotai": "^2.12.3",
     "react": "^19.1.0",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3"
   },
   "peerDependencies": {
+    "@types/react": "^19.1.2",
     "jotai": "^2.12.3",
-    "react": "^19.1.0",
-    "@types/react": "^19.1.2"
+    "react": "^19.1.0"
   }
 }
