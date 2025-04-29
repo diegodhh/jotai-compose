@@ -6,6 +6,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsup",
+    "prepublishOnly": "npm run build",
     "watch": "tsup --watch",
     "prepare": "husky",
     "test": ""
