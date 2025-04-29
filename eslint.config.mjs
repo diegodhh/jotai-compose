@@ -1,6 +1,7 @@
 /** @format */
 
 import js from "@eslint/js";
+import eslintConfigPrettier from "eslint-config-prettier/flat";
 import pluginReact from "eslint-plugin-react";
 import { defineConfig, globalIgnores } from "eslint/config";
 import globals from "globals";
@@ -13,7 +14,7 @@ export default defineConfig([
   {
     files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"],
     plugins: { js },
-    extends: ["js/recommended"],
+    extends: ["js/recommended", "prettier"],
   },
   {
     files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"],
@@ -21,4 +22,5 @@ export default defineConfig([
   },
   tseslint.configs.recommended,
   pluginReact.configs.flat.recommended,
+  eslintConfigPrettier,
 ]);
