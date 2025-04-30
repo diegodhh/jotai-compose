@@ -4,6 +4,8 @@
 
 A powerful utility library for composing and managing Jotai atoms in React applications.
 
+[GitHub Repository](https://github.com/diegodhh/jotai-compose)
+
 ## Installation
 
 ```bash
@@ -36,6 +38,7 @@ import {
 const firstAtom = atom({ first: 1 });
 
 // Create decorators to extend and derive state
+// derivation of state
 const firstPlusOneDecorator = {
   getter: ({ last }) =>
     atom({
@@ -45,14 +48,26 @@ const firstPlusOneDecorator = {
 
 // Use pipe to compose multiple state transformations
 const composedAtom = pipe(
-  ignoreSetterAtom(firstAtom),
+  firstAtom,
   extendStateAndDeriveFromDecorator(firstPlusOneDecorator),
 );
 
 // Use in your component
 function MyComponent() {
-  const [state] = useAtom(composedAtom);
-  return <div>First plus one: {state.firstPlusOne}</div>;
+  const [state, setState] = useAtom(composedAtom);
+
+  // When we call setState, it will delegate to the first atom's setter
+  // because the decorator's setter is not defined
+  const handleIncrement = () => {
+    setState({ first: state.first + 1 });
+  };
+
+  return (
+    <div>
+      <div>First plus one: {state.firstPlusOne}</div>
+      <button onClick={handleIncrement}>Increment First</button>
+    </div>
+  );
 }
 ```
 
@@ -92,8 +107,15 @@ const firstPlusOneDecorator = {
     }),
 };
 
-// Compose the atoms
-const composedAtom = pipe(
+// Without ignoreSetterAtom, any update would reach firstAtom
+const unsafeComposedAtom = pipe(
+  firstAtom,
+  extendStateAndDeriveFromDecorator(firstPlusOneDecorator),
+);
+
+// With ignoreSetterAtom, updates that aren't handled by decorators
+// won't reach firstAtom, preventing unexpected state changes
+const safeComposedAtom = pipe(
   ignoreSetterAtom(firstAtom),
   extendStateAndDeriveFromDecorator(firstPlusOneDecorator),
 );
