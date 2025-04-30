@@ -58,14 +58,14 @@ function MyComponent() {
 
   // When we call setState, it will delegate to the first atom's setter
   // because the decorator's setter is not defined
-  const handleIncrement = () => {
-    setState({ first: state.first + 1 });
+  const handleRandomFirst = () => {
+    setState({ first: Math.floor(Math.random() * 100) });
   };
 
   return (
     <div>
       <div>First plus one: {state.firstPlusOne}</div>
-      <button onClick={handleIncrement}>Increment First</button>
+      <button onClick={handleRandomFirst}>Increment First</button>
     </div>
   );
 }
