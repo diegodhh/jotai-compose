@@ -58,3 +58,9 @@ export const extendStateAndDeriveFromDecorator =
     );
     return newAtom;
   };
+
+export const ignoreSetterAtom = <T extends object>(a: Atom<T>) =>
+  atom(
+    (get) => get(a),
+    () => {},
+  );

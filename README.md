@@ -27,7 +27,10 @@ pnpm add jotai-composer
 ```tsx
 import { atom, useAtom } from "jotai";
 import { pipe } from "remeda";
-import { extendStateAndDeriveFromDecorator } from "jotai-composer";
+import {
+  extendStateAndDeriveFromDecorator,
+  ignoreSetterAtom,
+} from "jotai-composer";
 
 // Create your base atom
 const firstAtom = atom({ first: 1 });
@@ -42,7 +45,7 @@ const firstPlusOneDecorator = {
 
 // Use pipe to compose multiple state transformations
 const composedAtom = pipe(
-  firstAtom,
+  ignoreSetterAtom(firstAtom),
   extendStateAndDeriveFromDecorator(firstPlusOneDecorator),
 );
 
@@ -91,7 +94,7 @@ const firstPlusOneDecorator = {
 
 // Compose the atoms
 const composedAtom = pipe(
-  firstAtom,
+  ignoreSetterAtom(firstAtom),
   extendStateAndDeriveFromDecorator(firstPlusOneDecorator),
 );
 ```
@@ -103,7 +106,10 @@ Here's a more complex example showing multiple state transformations, actions, a
 ```tsx
 import { atom, useAtom } from "jotai";
 import { pipe } from "remeda";
-import { extendStateAndDeriveFromDecorator } from "jotai-composer";
+import {
+  extendStateAndDeriveFromDecorator,
+  ignoreSetterAtom,
+} from "jotai-composer";
 
 // Base state
 type First = { first: number };
@@ -153,7 +159,7 @@ const combinedDecorator = {
 
 // Compose all decorators
 const composedAtom = pipe(
-  firstAtom,
+  ignoreSetterAtom(firstAtom),
   extendStateAndDeriveFromDecorator(firstPlusOneDecorator),
   extendStateAndDeriveFromDecorator(modalDecorator),
   extendStateAndDeriveFromDecorator(combinedDecorator),
