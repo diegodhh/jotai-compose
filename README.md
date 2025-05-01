@@ -106,120 +106,323 @@ const firstPlusOneDecorator = {
       firstPlusOne: last.first + 1,
     }),
 };
-
-// Without ignoreSetterAtom, any update would reach firstAtom
-const unsafeComposedAtom = pipe(
-  firstAtom,
-  extendStateAndDeriveFromDecorator(firstPlusOneDecorator),
-);
-
-// With ignoreSetterAtom, updates that aren't handled by decorators
-// won't reach firstAtom, preventing unexpected state changes
-const safeComposedAtom = pipe(
-  ignoreSetterAtom(firstAtom),
-  extendStateAndDeriveFromDecorator(firstPlusOneDecorator),
-);
 ```
 
 ### Advanced Usage
 
-Here's a more complex example showing multiple state transformations, actions, and derived state:
+# Jotai Composer Guide
 
-```tsx
-import { atom, useAtom } from "jotai";
+This guide explains how to use Jotai Composer to manage state in React applications, using our example project's three decorators: Counter, Modal, and Base Plus One.
+
+## What is Jotai Composer?
+
+Jotai Composer is a library that extends Jotai's state management capabilities by allowing you to compose multiple state decorators together. In our example, we'll see how to combine three different decorators to create a cohesive state management solution.
+
+### Key Benefits
+
+- **Modular State Management**: Break down complex state into smaller, manageable pieces
+- **Type Safety**: Full TypeScript support for state and actions
+- **Composition**: Combine multiple state patterns seamlessly
+- **Persistence**: Built-in support for state persistence
+- **Performance**: Optimized for React's rendering cycle
+
+## Our Decorators
+
+### 1. Counter Decorator
+
+Manages a simple counter state with increment functionality.
+
+```typescript
+// src/decorators/addCounterDecorator.ts
+export enum Action {
+  ADD_COUNT = "ADD_COUNT",
+}
+
+export const createCounterDecorator = (
+  countAtom: WritableAtom<number, [number], void>,
+) => {
+  const counterDecorator: ExtendStateAndDeriveDecorator<
+    object,
+    DispatcherAction<Action, never>,
+    { count: number }
+  > = {
+    getter: ({ last }) => {
+      return atom((get) => ({ count: get(countAtom) }));
+    },
+    setter: ({ stateHelper: { set, get }, update }) => {
+      if (update.type === Action.ADD_COUNT) {
+        set(countAtom, get(countAtom) + 1);
+        return { shouldAbortNextSetter: true };
+      }
+      return { shouldAbortNextSetter: false };
+    },
+  };
+  return counterDecorator;
+};
+```
+
+### 2. Modal Decorator
+
+Manages modal state with open/close functionality.
+
+```typescript
+// src/decorators/addModalDecorator.ts
+export type ModalState = {
+  isOpen: boolean;
+  content: string | null;
+};
+
+export enum ModalAction {
+  OPEN_MODAL = "OPEN_MODAL",
+  CLOSE_MODAL = "CLOSE_MODAL",
+}
+
+export const createModalDecorator = (
+  modalAtom: WritableAtom<ModalState, [ModalState], void>,
+) => {
+  const modalDecorator: ExtendStateAndDeriveDecorator<
+    Partial<object>,
+    Required<DispatcherAction<ModalAction, string | null>>,
+    ModalState
+  > = {
+    getter: () => {
+      return atom((get) => get(modalAtom));
+    },
+    setter: ({ stateHelper: { set }, update }) => {
+      if (update.type === ModalAction.OPEN_MODAL) {
+        set(modalAtom, {
+          isOpen: true,
+          content: update.payload,
+        });
+        return { shouldAbortNextSetter: true };
+      }
+
+      if (update.type === ModalAction.CLOSE_MODAL) {
+        set(modalAtom, {
+          isOpen: false,
+          content: null,
+        });
+        return { shouldAbortNextSetter: true };
+      }
+
+      return { shouldAbortNextSetter: false };
+    },
+  };
+  return modalDecorator;
+};
+```
+
+### 3. Base Plus One Decorator
+
+Manages a base number and its derived value (base + 1).
+
+```typescript
+// src/decorators/basePlusOneDecorator.ts
+export type FirstPlusOne = {
+  base: number;
+  firstPlusOne: number;
+};
+
+export enum BaseAction {
+  SAVE_BASE = "SAVE_BASE",
+}
+
+export const createBasePlusOneDecorator = (
+  baseNumberAtom: WritableAtom<number, [number], void>,
+) => {
+  const firstPlusOneDecorator: ExtendStateAndDeriveDecorator<
+    Partial<object>,
+    Required<DispatcherAction<BaseAction, number>>,
+    FirstPlusOne
+  > = {
+    getter: () => {
+      return atom((get) => ({
+        base: get(baseNumberAtom),
+        firstPlusOne: get(baseNumberAtom) + 1,
+      }));
+    },
+    setter: ({ stateHelper: { set }, update }) => {
+      if (update.type === BaseAction.SAVE_BASE) {
+        set(baseNumberAtom, update.payload ?? 0);
+        return { shouldAbortNextSetter: true };
+      }
+      return { shouldAbortNextSetter: false };
+    },
+  };
+  return firstPlusOneDecorator;
+};
+```
+
+## Composing the Decorators
+
+In `src/coposedAtom.ts`, we combine all three decorators:
+
+```typescript
+import { extendStateAndDeriveFromDecorator } from "jotai-composer";
+import { atomWithStorage } from "jotai/utils";
 import { pipe } from "remeda";
+import { createCounterDecorator } from "./decorators/addCounterDecorator";
 import {
-  extendStateAndDeriveFromDecorator,
-  ignoreSetterAtom,
-} from "jotai-composer";
+  createModalDecorator,
+  ModalState,
+} from "./decorators/addModalDecorator";
+import { createBasePlusOneDecorator } from "./decorators/basePlusOneDecorator";
 
-// Base state
-type First = { first: number };
-const firstAtom = atom<First>({ first: 1 });
+// Create base atoms
+const baseAtom = atomWithStorage("base", 1);
+const counterAtom = atomWithStorage("counter", 0);
+const modalAtom = atomWithStorage<ModalState>("modal", {
+  isOpen: false,
+  content: null,
+});
 
-// First decorator - simple derivation
-type FirstPlusOneState = { firstPlusOne: number };
-const firstPlusOneDecorator = {
-  getter: ({ last }) =>
-    atom({
-      firstPlusOne: last.first + 1,
-    }),
-};
-
-// Second decorator - modal state with actions
-type ModalAction = { type: "OPEN_MODAL"; payload: boolean };
-type ModalState = { modalOpen: boolean };
-const modalAtom = atom<ModalState>({ modalOpen: false });
-
-const modalDecorator = {
-  getter: () => atom((get) => get(modalAtom)),
-  setter: ({ stateHelper: { set }, update }) => {
-    if (update.type === "OPEN_MODAL") {
-      set(modalAtom, { modalOpen: update.payload });
-    }
-    return { shouldAbortNextSetter: false };
-  },
-};
-
-// Third decorator - combined state with actions
-type CombinedAction = { type: "ADD_VALUE"; payload: number };
-type CombinedState = { combined: number };
-const additionalAtom = atom<number>(0);
-
-const combinedDecorator = {
-  getter: ({ last }) =>
-    atom((get) => ({
-      combined: last.first + get(additionalAtom),
-    })),
-  setter: ({ stateHelper: { set }, update }) => {
-    if (update.type === "ADD_VALUE") {
-      set(additionalAtom, (prev) => prev + update.payload);
-    }
-    return { shouldAbortNextSetter: false };
-  },
-};
-
-// Compose all decorators
-const composedAtom = pipe(
-  ignoreSetterAtom(firstAtom),
-  extendStateAndDeriveFromDecorator(firstPlusOneDecorator),
-  extendStateAndDeriveFromDecorator(modalDecorator),
-  extendStateAndDeriveFromDecorator(combinedDecorator),
+// Compose the decorators
+export const composedAtom = pipe(
+  extendStateAndDeriveFromDecorator(createCounterDecorator(counterAtom))(),
+  extendStateAndDeriveFromDecorator(createBasePlusOneDecorator(baseAtom)),
+  extendStateAndDeriveFromDecorator(createModalDecorator(modalAtom)),
 );
+```
 
-// Use in a component
-function StoreComponent() {
-  const [state, update] = useAtom(composedAtom);
+## Using in Components
+
+Here's how to use the composed atom in a React component:
+
+```typescript
+function App() {
+  const [atomValue, dispatch] = useAtom(composedAtom);
+
+  // Counter actions
+  const handleAddCount = () => {
+    dispatch({ type: Action.ADD_COUNT });
+  };
+
+  // Base actions
+  const handleSaveBase = () => {
+    dispatch({
+      type: BaseAction.SAVE_BASE,
+      payload: Math.floor(Math.random() * 100),
+    });
+  };
+
+  // Modal actions
+  const handleOpenModal = () => {
+    dispatch({
+      type: ModalAction.OPEN_MODAL,
+      payload: "This is a modal message!",
+    });
+  };
+
+  const handleCloseModal = () => {
+    dispatch({
+      type: ModalAction.CLOSE_MODAL,
+      payload: null,
+    });
+  };
 
   return (
     <div>
-      <h3>Store State</h3>
+      {/* Counter display */}
       <div>
-        <p>First: {state.first}</p>
-        <p>First plus one: {state.firstPlusOne}</p>
-        <p>Modal: {state.modalOpen ? "Open" : "Closed"}</p>
-        <p>Combined: {state.combined}</p>
+        <span>Count: {atomValue.count}</span>
+        <button onClick={handleAddCount}>Add Count</button>
       </div>
+
+      {/* Base display */}
       <div>
-        <button onClick={() => update({ type: "ADD_VALUE", payload: 5 })}>
-          Add 5
-        </button>
-        <button onClick={() => update({ type: "OPEN_MODAL", payload: true })}>
-          Open Modal
-        </button>
-        <button onClick={() => update({ type: "OPEN_MODAL", payload: false })}>
-          Close Modal
-        </button>
+        <span>Base: {atomValue.base}</span>
+        <span>Base + 1: {atomValue.firstPlusOne}</span>
+        <button onClick={handleSaveBase}>Set Random Base</button>
       </div>
+
+      {/* Modal */}
+      <button onClick={handleOpenModal}>Open Modal</button>
+      {atomValue.isOpen && (
+        <div className="modal">
+          <div className="modal-content">
+            <p>{atomValue.content}</p>
+            <button onClick={handleCloseModal}>Close</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 ```
 
-## Contributing
+## Key Concepts Demonstrated
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. **State Separation**
 
-## License
+   - Each decorator manages its own piece of state
+   - Clear separation of concerns
+   - Easy to maintain and test
 
-ISC © [Your Name]
+2. **Action Handling**
+
+   - Each decorator handles its own actions
+   - Actions are type-safe
+   - Clear action flow
+
+3. **State Composition**
+
+   - Decorators are composed in a specific order
+   - State is combined automatically
+   - Actions are properly routed
+
+4. **Type Safety**
+   - Full TypeScript support
+   - Proper type definitions for state and actions
+   - Compile-time error checking
+
+## Best Practices Demonstrated
+
+1. **Single Responsibility**
+
+   - Each decorator has one job
+   - Clear state boundaries
+   - Focused action handling
+
+2. **Type Safety**
+
+   - Proper TypeScript types
+   - Enum for actions
+   - Type-safe payloads
+
+3. **Persistence**
+
+   - Using `atomWithStorage`
+   - State survives page refresh
+   - Proper initialization
+
+4. **Composition**
+   - Clear composition order
+   - Proper action handling
+   - State combination
+
+## Troubleshooting
+
+1. **Type Errors**
+
+   - Check action types match exactly
+   - Verify payload types
+   - Ensure state shapes match
+
+2. **State Updates**
+
+   - Verify `shouldAbortNextSetter`
+   - Check action types
+   - Ensure proper payload
+
+3. **Composition Issues**
+   - Check decorator order
+   - Verify state compatibility
+   - Check action conflicts
+
+## Resources
+
+- [Jotai Documentation](https://jotai.org/)
+- [Jotai Composer GitHub](https://github.com/jotai-composer/jotai-composer)
+- [Remeda Documentation](https://remedajs.com/)
+- [TypeScript Documentation](https://www.typescriptlang.org/docs/)
+- [React Documentation](https://react.dev/)

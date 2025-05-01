@@ -5,30 +5,38 @@ import {
   ComposableAtom,
   DispatcherAction,
   ExtendStateAndDeriveDecorator,
+  InferState,
 } from "./types";
 
 export function isAtom<T>(value: unknown): value is Atom<T> {
   return typeof value === "object" && value !== null && "read" in value;
 }
 
-export type { ComposableAtom, DispatcherAction, ExtendStateAndDeriveDecorator };
+export type {
+  ComposableAtom,
+  DispatcherAction,
+  ExtendStateAndDeriveDecorator,
+  InferState,
+};
 
 export const extendStateAndDeriveFromDecorator =
   <
     TLastState extends object,
-    TParameterExtended extends object,
-    TResult extends object,
+    TParameterExtended extends object = never,
+    TResult extends object = never,
   >({
     getter = () => ({}) as TResult,
     setter = () => ({ shouldAbortNextSetter: false }),
   }: ExtendStateAndDeriveDecorator<TLastState, TParameterExtended, TResult>) =>
-  <TState extends TLastState, TParameter extends object>(
-    lastAtom: ComposableAtom<TState, TParameter>,
+  <TState extends TLastState, TParameter extends object = never>(
+    lastAtom?: ComposableAtom<TState, TParameter>,
   ) => {
     const newAtom = atom(
       (get) => {
+        const last = lastAtom ? get(lastAtom) : ({} as TLastState & TState);
+
         const possibleAtom = getter({
-          last: get(lastAtom),
+          last,
         });
         let notAtom;
         if (isAtom(possibleAtom)) {
@@ -37,22 +45,25 @@ export const extendStateAndDeriveFromDecorator =
           notAtom = possibleAtom;
         }
         return {
-          ...(get(lastAtom) as TState),
+          ...last,
           ...notAtom,
         };
       },
       (get, set, update: TParameterExtended | TParameter) => {
+        const last = lastAtom ? get(lastAtom) : ({} as TLastState & TState);
         const { shouldAbortNextSetter } =
           setter({
             stateHelper: {
-              last: get(lastAtom),
+              last,
               get,
               set,
             },
             update: update as TParameterExtended,
           }) || {};
         if (!shouldAbortNextSetter) {
-          set(lastAtom, update as TParameter);
+          if (lastAtom) {
+            set(lastAtom, update as TParameter);
+          }
         }
       },
     );
