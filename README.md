@@ -6,6 +6,17 @@ A powerful utility library for composing and managing Jotai atoms in React appli
 
 [GitHub Repository](https://github.com/diegodhh/jotai-compose)
 
+## Example Usage
+
+For a practical example of how to use `jotai-composer`, you can refer to the [Jotai Composer Example](https://github.com/diegodhh/jotai-compose-example) repository. This example demonstrates how to effectively compose and manage Jotai atoms in a React application using the `jotai-composer` library. It includes:
+
+- Setting up base atoms and decorators
+- Composing state with type safety
+- Handling actions with custom setters
+- Integrating with React components
+
+Explore the repository to see `jotai-composer` in action and understand how it can simplify state management in your projects.
+
 ## Installation
 
 ```bash
