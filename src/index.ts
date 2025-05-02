@@ -5,6 +5,7 @@ import {
   ComposableAtom,
   DispatcherAction,
   ExtendStateAndDeriveDecorator,
+  InferParameter,
   InferState,
 } from "./types";
 
@@ -16,6 +17,7 @@ export type {
   ComposableAtom,
   DispatcherAction,
   ExtendStateAndDeriveDecorator,
+  InferParameter,
   InferState,
 };
 
@@ -75,3 +77,34 @@ export const ignoreSetterAtom = <T extends object>(a: Atom<T>) =>
     (get) => get(a),
     () => {},
   );
+
+export const composedToDecorator = <
+  TComposed extends ComposableAtom = ComposableAtom,
+  TKey extends string = string,
+  TParameterComposed extends object = InferParameter<TComposed>,
+  TStateComposed extends object = InferState<TComposed>,
+>({
+  composed,
+  keyString,
+}: {
+  composed: ComposableAtom<TStateComposed, TParameterComposed>;
+  keyString: TKey;
+}) => {
+  const decorator: ExtendStateAndDeriveDecorator<
+    Partial<object>,
+    TParameterComposed,
+    Record<TKey, TStateComposed>
+  > = {
+    getter: ({ last }) => {
+      return atom((get) => ({
+        ...last,
+        [keyString as TKey]: get(composed),
+      })) as Atom<Record<TKey, TStateComposed>>;
+    },
+    setter: ({ stateHelper: { set }, update }) => {
+      set(composed, update);
+      return { shouldAbortNextSetter: false };
+    },
+  };
+  return decorator;
+};
