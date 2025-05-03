@@ -8,11 +8,14 @@
   <a href="https://www.npmjs.com/package/jotai-composer">
     <img alt="npm" src="https://img.shields.io/npm/v/jotai-composer?color=cb3837&logo=npm" />
   </a>
-  <a href="https://github.com/jotai-composer/jotai-composer/actions">
-    <img alt="Build" src="https://github.com/jotai-composer/jotai-composer/workflows/CI/badge.svg" />
-  </a>
   <a href="https://github.com/jotai-composer/jotai-composer/blob/main/LICENSE">
     <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg" />
+  </a>
+  <a href="https://github.com/diegodhh/jotai-compose">
+    <img alt="Repo" src="https://img.shields.io/badge/Repo-GitHub-blue" />
+  </a>
+  <a href="https://github.com/diegodhh/jotai-compose-example">
+    <img alt="Example" src="https://img.shields.io/badge/Example-Project-green" />
   </a>
 </p>
 
