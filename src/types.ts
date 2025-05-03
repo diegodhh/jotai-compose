@@ -32,7 +32,7 @@ type StateTracking<TLastState> = {
   last: TLastState;
 };
 
-export type ComposableAtomGetterWithLastState<
+export type ComposableAtomReaderWithLastState<
   TLastState extends object,
   TResult extends object = object,
 > = (state: StateTracking<TLastState>) => TResult | Atom<TResult>;
@@ -42,7 +42,7 @@ type AtomHelpers = {
   set: Setter;
 };
 
-export type ComposableAtomSetterWithLastState<
+export type ComposableAtomWriterWithLastState<
   TLastState extends object,
   TParameter extends object,
 > = (param: {
@@ -50,11 +50,11 @@ export type ComposableAtomSetterWithLastState<
   update: TParameter;
 }) => { shouldAbortNextSetter?: boolean };
 
-export type ExtendStateAndDeriveDecorator<
+export type AtomEnhancer<
   TLastState extends object,
   TParameter extends object,
   TResult extends object,
 > = {
-  getter?: ComposableAtomGetterWithLastState<TLastState, TResult>;
-  setter?: ComposableAtomSetterWithLastState<TLastState, TParameter>;
+  read?: ComposableAtomReaderWithLastState<TLastState, TResult>;
+  write?: ComposableAtomWriterWithLastState<TLastState, TParameter>;
 };

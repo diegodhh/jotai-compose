@@ -2,9 +2,9 @@
 
 import { Atom, atom } from "jotai";
 import {
+  AtomEnhancer,
   ComposableAtom,
   DispatcherAction,
-  ExtendStateAndDeriveDecorator,
   InferParameter,
   InferState,
 } from "./types";
@@ -14,22 +14,22 @@ export function isAtom<T>(value: unknown): value is Atom<T> {
 }
 
 export type {
+  AtomEnhancer,
   ComposableAtom,
   DispatcherAction,
-  ExtendStateAndDeriveDecorator,
   InferParameter,
   InferState,
 };
 
-export const extendStateAndDeriveFromDecorator =
+export const enhanceWith =
   <
     TLastState extends object,
     TParameterExtended extends object = never,
     TResult extends object = never,
   >({
-    getter = () => ({}) as TResult,
-    setter = () => ({ shouldAbortNextSetter: false }),
-  }: ExtendStateAndDeriveDecorator<TLastState, TParameterExtended, TResult>) =>
+    read = () => ({}) as TResult,
+    write = () => ({ shouldAbortNextSetter: false }),
+  }: AtomEnhancer<TLastState, TParameterExtended, TResult>) =>
   <TState extends TLastState, TParameter extends object = never>(
     lastAtom?: ComposableAtom<TState, TParameter>,
   ) => {
@@ -37,7 +37,7 @@ export const extendStateAndDeriveFromDecorator =
       (get) => {
         const last = lastAtom ? get(lastAtom) : ({} as TLastState & TState);
 
-        const possibleAtom = getter({
+        const possibleAtom = read({
           last,
         });
         let notAtom;
@@ -54,7 +54,7 @@ export const extendStateAndDeriveFromDecorator =
       (get, set, update: TParameterExtended | TParameter) => {
         const last = lastAtom ? get(lastAtom) : ({} as TLastState & TState);
         const { shouldAbortNextSetter } =
-          setter({
+          write({
             stateHelper: {
               last,
               get,
@@ -78,9 +78,9 @@ export const ignoreSetterAtom = <T extends object>(a: Atom<T>) =>
     () => {},
   );
 
-export const composedToDecorator = <
+export const composedToEnhancer = <
+  const TKey extends string | undefined = undefined,
   TComposed extends ComposableAtom = ComposableAtom,
-  TKey extends string = string,
   TParameterComposed extends object = InferParameter<TComposed>,
   TStateComposed extends object = InferState<TComposed>,
 >({
@@ -88,23 +88,33 @@ export const composedToDecorator = <
   keyString,
 }: {
   composed: ComposableAtom<TStateComposed, TParameterComposed>;
-  keyString: TKey;
+  keyString?: TKey | undefined;
 }) => {
-  const decorator: ExtendStateAndDeriveDecorator<
+  const enhancer: AtomEnhancer<
     Partial<object>,
     TParameterComposed,
-    Record<TKey, TStateComposed>
+    TKey extends string ? Record<TKey, TStateComposed> : TStateComposed
   > = {
-    getter: ({ last }) => {
-      return atom((get) => ({
-        ...last,
-        [keyString as TKey]: get(composed),
-      })) as Atom<Record<TKey, TStateComposed>>;
+    read: ({ last }) => {
+      type Enhanced = TKey extends string
+        ? Record<TKey, TStateComposed>
+        : TStateComposed;
+      if (keyString) {
+        return atom((get) => ({
+          ...last,
+          [keyString as string]: get(composed),
+        })) as Atom<Enhanced>;
+      } else {
+        return atom((get) => ({
+          ...last,
+          ...get(composed),
+        })) as Atom<Enhanced>;
+      }
     },
-    setter: ({ stateHelper: { set }, update }) => {
+    write: ({ stateHelper: { set }, update }) => {
       set(composed, update);
       return { shouldAbortNextSetter: false };
     },
   };
-  return decorator;
+  return enhancer;
 };
