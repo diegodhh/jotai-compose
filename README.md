@@ -183,7 +183,7 @@ get inferred end-to-end.
 ## Example Project
 
 For a complete, runnable example see the
-[`jotai-composer-example`](https://github.com/jotai-composer/jotai-composer-example)
+[`jotai-composer-example`](https://github.com/diegodhh/jotai-compose-example)
 repo. It demonstrates **five enhancers** working together:
 
 | #   | Enhancer         | Purpose                            |
