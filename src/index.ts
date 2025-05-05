@@ -16,5 +16,6 @@ export type {
   InferState,
 };
 
+export { atomEnhancer } from "./atomEnhancer";
 export { composedToEnhancer } from "./composedToEnhancer";
 export { enhanceWith } from "./enhanceWith";

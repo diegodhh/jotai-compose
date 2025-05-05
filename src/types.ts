@@ -2,6 +2,21 @@
 
 import { Atom, Getter, Setter, WritableAtom } from "jotai";
 
+export type AtomEnhancerRead<
+  TLastState extends object,
+  TResult extends object = object,
+> = (get: Getter, { last }: StateTracking<TLastState>) => TResult;
+
+export type AtomEnhancerWrite<
+  TLastState extends object,
+  TParameter extends object,
+> = (
+  get: Getter,
+  set: Setter,
+  update: TParameter,
+  { last }: StateTracking<TLastState>,
+) => { shouldAbortNextSetter?: boolean };
+
 export type DispatcherAction<T extends string = string, TPayload = unknown> = {
   type: T;
   payload?: TPayload;
@@ -28,7 +43,7 @@ export type ComposableAtomGetter<
   TResult extends object = object,
 > = (state: TState) => TResult | Atom<TResult>;
 
-type StateTracking<TLastState> = {
+export type StateTracking<TLastState> = {
   last: TLastState;
 };
 
