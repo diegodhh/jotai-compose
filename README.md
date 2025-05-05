@@ -171,14 +171,12 @@ const userEnhancer = composedToEnhancer({
 
 ## API Reference
 
-| Function                                       | Description                                           |
-| ---------------------------------------------- | ----------------------------------------------------- |
-| `enhanceWith(enhancer)()`                      | Starts a chain with the given enhancer.               |
-| `enhanceWith(enhancer)(prevAtom)`              | Adds the enhancer on top of `prevAtom`.               |
-| `composedToEnhancer({ composed, keyString? })` | Wrap an existing atom so it behaves like an enhancer. |
-| `ignoreSetterAtom(atom)`                       | Read-only mirror – **any** `set` is silently ignored. |
+| Function                                       | Description                                                                                                                  |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `enhanceWith(enhancer)()`                      | Starts a chain with the given enhancer.                                                                                      |
+| `enhanceWith(enhancer)(prevAtom)`              | Adds the enhancer on top of `prevAtom`.                                                                                      |
+| `composedToEnhancer({ composed, keyString? })` | Wrap an existing atom so it behaves like an enhancer. All helpers are fully typed—all your `state`, `actions` and `payloads` |
 
-All helpers are fully typed—all your `state`, `actions` and `payloads`
 get inferred end-to-end.
 
 ---
