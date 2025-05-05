@@ -11,7 +11,8 @@
     "type-check": "npx tsc --noEmit",
     "watch": "tsup --watch",
     "prepare": "husky",
-    "test": ""
+    "test": "vitest run",
+    "test:watch": "vitest --watch"
   },
   "lint-staged": {
     "*.{ts,js,json,md}": "prettier --write"
@@ -36,7 +37,8 @@
     "react": "^19.1.0",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.31.0"
+    "typescript-eslint": "^8.31.0",
+    "vitest": "^3.1.3"
   },
   "peerDependencies": {
     "@types/react": "^19.1.2",
