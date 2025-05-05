@@ -63,10 +63,10 @@ pnpm add jotai-composer               # pnpm
 
 ## Quick Start
 
-```tsx
+````tsx
 import { atom, useAtom } from "jotai";
 import { pipe } from "remeda";
-import { enhanceWith, AtomEnhancer, DispatcherAction } from "jotai-composer";
+import { enhanceWith, atomEnhancer, DispatcherAction } from "jotai-composer";
 
 /* 1. Base atom */
 const countAtom = atom(0);
@@ -75,23 +75,36 @@ const countAtom = atom(0);
 export enum CounterAction {
   ADD = "ADD",
 }
-const counterEnhancer: AtomEnhancer<
-  object,
-  DispatcherAction<CounterAction>,
-  { count: number }
-> = {
-  read: () => atom((get) => ({ count: get(countAtom) })),
-  write: ({ stateHelper: { set, get }, update }) => {
+const counterEnhancer = atomEnhancer(
+  // Read function
+  (get) => ({ count: get(countAtom) }),
+
+  // Write function
+  (get, set, update: DispatcherAction<CounterAction>) => {
     if (update.type === CounterAction.ADD) {
       set(countAtom, get(countAtom) + 1);
       return { shouldAbortNextSetter: true };
     }
     return { shouldAbortNextSetter: false };
   },
-};
+);
+
+/* 2.5 Another enhancer */
+const countPlusOneEnhancer = atomEnhancer(
+  // Read function - adds a derived state
+  (get, { last }) => ({
+    countPlusOne: last.count + 1
+  }),
+
+  // No write function needed - it's a derived state
+);
+
 
 /* 3. Compose */
-export const composedAtom = pipe(enhanceWith(counterEnhancer)());
+export const composedAtom = pipe(
+  enhanceWith(counterEnhancer)(),
+  enhanceWith(countPlusOneEnhancer)
+);
 
 /* 4. Use in React */
 function Counter() {
@@ -99,11 +112,10 @@ function Counter() {
 
   return (
     <button onClick={() => dispatch({ type: CounterAction.ADD })}>
-      {state.count}
+      Count: {state.count} (Plus one: {state.countPlusOne})
     </button>
   );
 }
-```
 
 ---
 
@@ -127,10 +139,12 @@ export type AtomEnhancer<
     update: TParam;
   }) => { shouldAbortNextSetter?: boolean };
 };
-```
+````
 
 _Return `shouldAbortNextSetter: true` if the action has been fully
 processed and should **not** propagate to previous atoms._
+
+_Using `atomEnhancer` helper is the recommended way to create enhancers, as shown in the [Quick Start](#quick-start) example._
 
 ---
 
@@ -141,12 +155,19 @@ atom and returns a new **derived atom** that merges both states and
 forwards `write` calls.
 
 ```ts
-const todoEnhancer   = …;
-const filterEnhancer = …;
+// Create enhancers (typically with atomEnhancer helper)
+const todoEnhancer = atomEnhancer(
+  (get) => ({ todos: get(todosAtom) }),
+  (get, set, update) => {
+    /* handle actions */
+  },
+);
+const filterEnhancer = atomEnhancer((get) => ({ filter: get(filterAtom) }));
 
+// Compose them together
 const composedAtom = pipe(
-  enhanceWith(todoEnhancer)(),       // start the chain
-  enhanceWith(filterEnhancer),       // add another slice
+  enhanceWith(todoEnhancer)(), // start the chain
+  enhanceWith(filterEnhancer), // add another slice
 );
 ```
 
@@ -169,15 +190,49 @@ const userEnhancer = composedToEnhancer({
 
 ---
 
+### `atomEnhancer`
+
+`atomEnhancer(read, write?)` is a **shorthand** that lets you create an
+`AtomEnhancer` using just two pure functions:
+
+```ts
+import { atom, Getter, Setter } from "jotai";
+import { atomEnhancer, DispatcherAction } from "jotai-composer";
+
+export enum CounterAction {
+  ADD = "ADD",
+}
+
+const countAtom = atom(0);
+
+const counterEnhancer = atomEnhancer(
+  // 1️⃣ read - derives new state slice
+  (get: Getter) => ({ count: get(countAtom) }),
+
+  // 2️⃣ write (optional) - handles dispatched actions
+  (get: Getter, set: Setter, update: DispatcherAction<CounterAction>) => {
+    if (update.type === CounterAction.ADD) {
+      set(countAtom, get(countAtom) + 1);
+      return { shouldAbortNextSetter: true };
+    }
+    return { shouldAbortNextSetter: false };
+  },
+);
+```
+
+This internally returns an object that satisfies the `AtomEnhancer` interface,
+eliminating the boilerplate of manually writing `{ read, write }` objects.
+
+---
+
 ## API Reference
 
-| Function                                       | Description                                                                                                                  |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `enhanceWith(enhancer)()`                      | Starts a chain with the given enhancer.                                                                                      |
-| `enhanceWith(enhancer)(prevAtom)`              | Adds the enhancer on top of `prevAtom`.                                                                                      |
-| `composedToEnhancer({ composed, keyString? })` | Wrap an existing atom so it behaves like an enhancer. All helpers are fully typed—all your `state`, `actions` and `payloads` |
-
-get inferred end-to-end.
+| Function                                       | Description                                                                                                                                           |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enhanceWith(enhancer)()`                      | Starts a chain with the given enhancer.                                                                                                               |
+| `enhanceWith(enhancer)(prevAtom)`              | Adds the enhancer on top of `prevAtom`.                                                                                                               |
+| `composedToEnhancer({ composed, keyString? })` | Wrap an existing atom so it behaves like an enhancer. All helpers are fully typed—all your `state`, `actions` and `payloads` get inferred end-to-end. |
+| `atomEnhancer(read, write?)`                   | Shorthand that builds an `AtomEnhancer` from two pure functions (`read`, `write`).                                                                    |
 
 ---
 
