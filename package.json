@@ -4,6 +4,9 @@
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "repository": {
+    "url": "https://github.com/diegodhh/jotai-compose"
+  },
   "scripts": {
     "build": "tsup",
     "prepublishOnly": "npm run build",
