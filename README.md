@@ -39,8 +39,8 @@ layer** by composing small, isolated **enhancers**.
 2. [Quick Start](#quick-start)
 3. [Core Concepts](#core-concepts)
    1. [Enhancer](#enhancer)
-   2. [`enhanceWith`](#enhancewith)
-   3. [`composedToEnhancer`](#composedtoenhancer)
+   2. [`atomEnhancer`](#atomenhancer)
+   3. [`toEnhancer`](#toenhancer)
 4. [API Reference](#api-reference)
 5. [Example Project](#example-project)
 6. [Best Practices](#best-practices)
@@ -63,10 +63,10 @@ pnpm add jotai-composer               # pnpm
 
 ## Quick Start
 
-````tsx
+```tsx
 import { atom, useAtom } from "jotai";
 import { pipe } from "remeda";
-import { enhanceWith, atomEnhancer, DispatcherAction } from "jotai-composer";
+import { atomEnhancer, DispatcherAction } from "jotai-composer";
 
 /* 1. Base atom */
 const countAtom = atom(0);
@@ -93,18 +93,14 @@ const counterEnhancer = atomEnhancer(
 const countPlusOneEnhancer = atomEnhancer(
   // Read function - adds a derived state
   (get, { last }) => ({
-    countPlusOne: last.count + 1
+    countPlusOne: last.count + 1,
   }),
 
   // No write function needed - it's a derived state
 );
 
-
 /* 3. Compose */
-export const composedAtom = pipe(
-  enhanceWith(counterEnhancer)(),
-  enhanceWith(countPlusOneEnhancer)
-);
+export const composedAtom = pipe(counterEnhancer(), countPlusOneEnhancer);
 
 /* 4. Use in React */
 function Counter() {
@@ -116,6 +112,7 @@ function Counter() {
     </button>
   );
 }
+```
 
 ---
 
@@ -139,54 +136,12 @@ export type AtomEnhancer<
     update: TParam;
   }) => { shouldAbortNextSetter?: boolean };
 };
-````
+```
 
 _Return `shouldAbortNextSetter: true` if the action has been fully
 processed and should **not** propagate to previous atoms._
 
 _Using `atomEnhancer` helper is the recommended way to create enhancers, as shown in the [Quick Start](#quick-start) example._
-
----
-
-### `enhanceWith`
-
-`enhanceWith(enhancer)` returns a **function** that receives the previous
-atom and returns a new **derived atom** that merges both states and
-forwards `write` calls.
-
-```ts
-// Create enhancers (typically with atomEnhancer helper)
-const todoEnhancer = atomEnhancer(
-  (get) => ({ todos: get(todosAtom) }),
-  (get, set, update) => {
-    /* handle actions */
-  },
-);
-const filterEnhancer = atomEnhancer((get) => ({ filter: get(filterAtom) }));
-
-// Compose them together
-const composedAtom = pipe(
-  enhanceWith(todoEnhancer)(), // start the chain
-  enhanceWith(filterEnhancer), // add another slice
-);
-```
-
----
-
-### `composedToEnhancer`
-
-Sometimes you need to embed an **already composed** atom inside a larger
-pipeline. `composedToEnhancer` adapts any existing atom into an
-enhancer:
-
-```ts
-const userAtom = /* exposes { id, name } */
-
-const userEnhancer = composedToEnhancer({
-  composed: userAtom,
-  keyString: "user",   // optional – nest under `state.user`
-});
-```
 
 ---
 
@@ -220,19 +175,36 @@ const counterEnhancer = atomEnhancer(
 );
 ```
 
-This internally returns an object that satisfies the `AtomEnhancer` interface,
-eliminating the boilerplate of manually writing `{ read, write }` objects.
+This internally creates an enhancer that can be composed with other enhancers.
+
+---
+
+### `toEnhancer`
+
+Sometimes you need to embed an **already composed** atom inside a larger
+pipeline. `toEnhancer` adapts any existing atom into an
+enhancer:
+
+```ts
+import { toEnhancer } from "jotai-composer";
+
+const userAtom = /* exposes { id, name } */
+
+const userEnhancer = toEnhancer({
+  composed: userAtom,
+  keyString: "user",   // optional – nest under `state.user`
+});
+```
 
 ---
 
 ## API Reference
 
-| Function                                       | Description                                                                                                                                           |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `enhanceWith(enhancer)()`                      | Starts a chain with the given enhancer.                                                                                                               |
-| `enhanceWith(enhancer)(prevAtom)`              | Adds the enhancer on top of `prevAtom`.                                                                                                               |
-| `composedToEnhancer({ composed, keyString? })` | Wrap an existing atom so it behaves like an enhancer. All helpers are fully typed—all your `state`, `actions` and `payloads` get inferred end-to-end. |
-| `atomEnhancer(read, write?)`                   | Shorthand that builds an `AtomEnhancer` from two pure functions (`read`, `write`).                                                                    |
+| Function                               | Description                                                                                                                                           |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `atomEnhancer(read, write?)()`         | Creates an enhancer and starts a chain with it.                                                                                                       |
+| `atomEnhancer(read, write?)(prevAtom)` | Creates an enhancer and adds it on top of `prevAtom`.                                                                                                 |
+| `toEnhancer({ composed, keyString? })` | Wrap an existing atom so it behaves like an enhancer. All helpers are fully typed—all your `state`, `actions` and `payloads` get inferred end-to-end. |
 
 ---
 
