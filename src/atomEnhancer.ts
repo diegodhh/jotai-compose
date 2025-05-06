@@ -1,4 +1,5 @@
 import { atom } from "jotai";
+import { enhanceWith } from "./enhanceWith";
 import { AtomEnhancer, AtomEnhancerRead, AtomEnhancerWrite } from "./types";
 
 export const atomEnhancer = <
@@ -18,5 +19,5 @@ export const atomEnhancer = <
           write(get, set, update, { last })
       : undefined,
   };
-  return enhancer;
+  return enhanceWith(enhancer);
 };

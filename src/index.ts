@@ -17,5 +17,4 @@ export type {
 };
 
 export { atomEnhancer } from "./atomEnhancer";
-export { composedToEnhancer } from "./composedToEnhancer";
-export { enhanceWith } from "./enhanceWith";
+export { toEnhancer } from "./toEnhancer";
