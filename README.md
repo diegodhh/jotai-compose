@@ -224,10 +224,10 @@ repo. It demonstrates **five enhancers** working together:
 
 ```ts
 const composedAtom = pipe(
-  enhanceWith(createCounter(counterAtom))(), // 1️⃣
-  enhanceWith(baseEnhancer), // 2️⃣ + 3️⃣ (sub-composition)
-  enhanceWith(createInputState(inputAtom, "")),
-  enhanceWith(modalEnhancer),
+  createCounter(counterAtom)(), // 1️⃣
+  baseEnhancer, // 2️⃣ + 3️⃣ (sub-composition)
+  createInputState(inputAtom, ""),
+  modalEnhancer,
 );
 ```
 
