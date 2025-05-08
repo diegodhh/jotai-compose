@@ -38,8 +38,8 @@ layer** by composing small, isolated **enhancers**.
 1. [Installation](#installation)
 2. [Quick Start](#quick-start)
 3. [Core Concepts](#core-concepts)
-   1. [Enhancer](#enhancer)
-   2. [`atomEnhancer`](#atomenhancer)
+   1. [`atomEnhancer`](#atomenhancer)
+   2. [Precomposing with `piped`](#precomposing-with-piped)
    3. [`toEnhancer`](#toenhancer)
 4. [API Reference](#api-reference)
 5. [Example Project](#example-project)
@@ -100,7 +100,13 @@ const countPlusOneEnhancer = atomEnhancer(
 );
 
 /* 3. Compose */
-export const composedAtom = pipe(counterEnhancer(), countPlusOneEnhancer);
+export const composedAtom = piped(
+  counterEnhancer,
+  countPlusOneEnhancer,
+)(undefined); // passing undefined as the initial atom
+// We pass undefined as the first atom in the composition chain.
+// This tells the enhancers to start with an empty state object.
+// Each enhancer will then add its own state properties to this object.
 
 /* 4. Use in React */
 function Counter() {
@@ -117,33 +123,6 @@ function Counter() {
 ---
 
 ## Core Concepts
-
-### Enhancer
-
-An **enhancer** owns a slice of state (`read`) and can react to dispatched
-**actions** (`write`). It is just a plain object that fits the
-`AtomEnhancer` type:
-
-```ts
-export type AtomEnhancer<
-  TLastState extends object,   // State exposed _before_ this enhancer
-  TParam     extends object,   // Allowed payload for dispatch()
-  TResult    extends object    // State exposed _by_ this enhancer
-> = {
-  read?:  ({ last }: { last: TLastState }) => Atom<TResult> | TResult;
-  write?: ({
-    stateHelper: { last: TLastState; get: Getter; set: Setter };
-    update: TParam;
-  }) => { shouldAbortNextSetter?: boolean };
-};
-```
-
-_Return `shouldAbortNextSetter: true` if the action has been fully
-processed and should **not** propagate to previous atoms._
-
-_Using `atomEnhancer` helper is the recommended way to create enhancers, as shown in the [Quick Start](#quick-start) example._
-
----
 
 ### `atomEnhancer`
 
@@ -179,6 +158,33 @@ This internally creates an enhancer that can be composed with other enhancers.
 
 ---
 
+### Precomposing with `piped`
+
+The recommended way to precompose related enhancers is using the `piped` function, which allows you to create reusable groups of enhancers:
+
+```ts
+import { piped } from "jotai-composer";
+// or import { pipe } from "remeda";
+
+// Precompose related enhancers
+const baseEnhancer = piped(
+  createBase(baseAtom), // First enhancer in the chain
+  createBasePlus(1), // Second enhancer in the chain
+);
+
+// Use in main composition
+export const composedAtom = piped(
+  createCounter(counterAtom), // Counter enhancer
+  baseEnhancer, // Precomposed Base + BasePlus enhancers
+  createInputState(inputAtom, ""), // Input state management
+  modalEnhancer, // Modal functionality
+)(undefined); // Final invocation with undefined (no previous atom)
+```
+
+This approach makes your code more modular and maintainable, especially when dealing with complex state compositions.
+
+---
+
 ### `toEnhancer`
 
 Sometimes you need to embed an **already composed** atom inside a larger
@@ -188,13 +194,19 @@ enhancer:
 ```ts
 import { toEnhancer } from "jotai-composer";
 
-const userAtom = /* exposes { id, name } */
+const userAtomComposition = piped(
+  createUserProfile(profileAtom),
+  createUserPreferences(preferencesAtom),
+  createUserPermissions(permissionsAtom),
+)(undefined);
 
 const userEnhancer = toEnhancer({
-  composed: userAtom,
-  keyString: "user",   // optional – nest under `state.user`
+  composed: userAtomComposition,
+  keyString: "user", // optional – nest under `state.user`
 });
 ```
+
+Use `toEnhancer` only when you need to incorporate an existing atom into your composition with a specific key structure. Unlike regular enhancers that participate in the full composition chain, `toEnhancer` creates a disconnected atom that doesn't receive the previous atom's state as a parameter.
 
 ---
 
@@ -204,6 +216,7 @@ const userEnhancer = toEnhancer({
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `atomEnhancer(read, write?)()`         | Creates an enhancer and starts a chain with it.                                                                                                       |
 | `atomEnhancer(read, write?)(prevAtom)` | Creates an enhancer and adds it on top of `prevAtom`.                                                                                                 |
+| `piped(...enhancers)(prevAtom?)`       | Precompose multiple enhancers into a reusable group that can be used in larger compositions.                                                          |
 | `toEnhancer({ composed, keyString? })` | Wrap an existing atom so it behaves like an enhancer. All helpers are fully typed—all your `state`, `actions` and `payloads` get inferred end-to-end. |
 
 ---
@@ -223,12 +236,19 @@ repo. It demonstrates **five enhancers** working together:
 | 5   | Modal (composed) | `isOpen`, `modalType`, `content`   |
 
 ```ts
-const composedAtom = pipe(
-  createCounter(counterAtom)(), // 1️⃣
-  baseEnhancer, // 2️⃣ + 3️⃣ (sub-composition)
-  createInputState(inputAtom, ""),
-  modalEnhancer,
+// Using piped for precomposition
+const baseEnhancer = piped(
+  createBase(baseAtom), // 2️⃣
+  createBasePlus(1), // 3️⃣
 );
+
+// Main composition
+const composedAtom = piped(
+  createCounter(counterAtom), // 1️⃣
+  baseEnhancer, // 2️⃣ + 3️⃣ (precomposed)
+  createInputState(inputAtom, ""), // 4️⃣
+  modalEnhancer, // 5️⃣
+)(undefined);
 ```
 
 Resulting state shape:
@@ -261,6 +281,8 @@ Every enhancer's actions flow through the tuple returned by
 4. **Keep `read` pure** – avoid side-effects.
 5. **Persist at the edges** – wrap storage-backed atoms, not the whole
    composition.
+6. **Use `piped` for related enhancers** – precompose logically grouped enhancers for better organization.
+7. **Reserve `toEnhancer` for specific cases** – only use when integrating an existing atom that needs a nested structure.
 
 ---
 
