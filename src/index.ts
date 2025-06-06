@@ -2,6 +2,8 @@
 
 import {
   AtomEnhancer,
+  AtomEnhancerRead,
+  AtomEnhancerWrite,
   ComposableAtom,
   DispatcherAction,
   InferParameter,
@@ -10,6 +12,8 @@ import {
 
 export type {
   AtomEnhancer,
+  AtomEnhancerRead,
+  AtomEnhancerWrite,
   ComposableAtom,
   DispatcherAction,
   InferParameter,
