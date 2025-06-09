@@ -4,6 +4,9 @@
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "repository": {
     "url": "https://github.com/diegodhh/jotai-compose"
   },
@@ -20,10 +23,16 @@
   "lint-staged": {
     "*.{ts,js,json,md}": "prettier --write"
   },
-  "keywords": [],
+  "keywords": [
+    "jotai",
+    "enhancer",
+    "composable",
+    "atom",
+    "compose"
+  ],
   "author": "Diego Herrero",
   "license": "MIT",
-  "description": "",
+  "description": "Jotai enhancers for composing atoms",
   "devDependencies": {
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
