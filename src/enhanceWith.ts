@@ -13,6 +13,7 @@ export const enhanceWith =
   }: AtomEnhancer<TLastState, TParameterExtended, TResult>) =>
   <TState extends TLastState, TParameter extends object = never>(
     lastAtom?: ComposableAtom<TState, TParameter>,
+    fallbackAtom?: ComposableAtom<any, TParameter>,
   ) => {
     const newAtom = atom(
       (get) => {
@@ -47,8 +48,18 @@ export const enhanceWith =
           if (lastAtom) {
             set(lastAtom, update as TParameter);
           }
+        } else {
+          if (fallbackAtom) {
+            set(fallbackAtom, update as TParameter);
+          }
         }
       },
     );
     return newAtom;
   };
+
+export type Enhancer<
+  TLastState extends object,
+  TParameterExtended extends object = never,
+  TResult extends object = never,
+> = ReturnType<typeof enhanceWith<TLastState, TParameterExtended, TResult>>;

@@ -1,15 +1,17 @@
 import { atom } from "jotai";
-import { enhanceWith } from "./enhanceWith";
+import { Enhancer, enhanceWith } from "./enhanceWith";
 import { AtomEnhancer, AtomEnhancerRead, AtomEnhancerWrite } from "./types";
 
-export const atomEnhancer = <
+export function atomEnhancer<
   TLastState extends object,
   TParameter extends object,
   TResult extends object = object,
 >(
   read: AtomEnhancerRead<TLastState, TResult>,
   write?: AtomEnhancerWrite<TLastState, TParameter>,
-) => {
+  fallbackEnhancer?: ReturnType<Enhancer<TLastState, TParameter, TResult>>,
+) {
+  type TLastEnhancer = Parameters<Enhancer<TLastState, TParameter, TResult>>[0];
   const enhancer: AtomEnhancer<TLastState, TParameter, TResult> = {
     read: ({ last }) => {
       return atom((get) => read(get, { last }));
@@ -19,5 +21,5 @@ export const atomEnhancer = <
           write(get, set, update, { last })
       : undefined,
   };
-  return enhanceWith(enhancer);
-};
+  return (last: TLastEnhancer) => enhanceWith(enhancer)(last, fallbackEnhancer);
+}

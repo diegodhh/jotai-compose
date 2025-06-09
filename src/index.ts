@@ -1,5 +1,6 @@
 /** @format */
 
+import type { Enhancer } from "./enhanceWith";
 import {
   AtomEnhancer,
   AtomEnhancerRead,
@@ -9,16 +10,16 @@ import {
   InferParameter,
   InferState,
 } from "./types";
-
+export { atomEnhancer } from "./atomEnhancer";
+export { enhanceWith } from "./enhanceWith";
+export { toEnhancer } from "./toEnhancer";
 export type {
   AtomEnhancer,
   AtomEnhancerRead,
   AtomEnhancerWrite,
   ComposableAtom,
   DispatcherAction,
+  Enhancer,
   InferParameter,
   InferState,
 };
-
-export { atomEnhancer } from "./atomEnhancer";
-export { toEnhancer } from "./toEnhancer";
