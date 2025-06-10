@@ -47,6 +47,7 @@
     "lint-staged": "^15.5.1",
     "prettier": "3.5.3",
     "react": "^19.1.0",
+    "remeda": "^2.23.0",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.31.0",

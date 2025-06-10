@@ -40,7 +40,6 @@ layer** by composing small, isolated **enhancers**.
 3. [Core Concepts](#core-concepts)
    1. [`atomEnhancer`](#atomenhancer)
    2. [Precomposing with `piped`](#precomposing-with-piped)
-   3. [`toEnhancer`](#toenhancer)
 4. [API Reference](#api-reference)
 5. [Example Project](#example-project)
 6. [Best Practices](#best-practices)
@@ -65,57 +64,144 @@ pnpm add jotai-composer               # pnpm
 
 ```tsx
 import { atom, useAtom } from "jotai";
-import { pipe } from "remeda";
+import { piped } from "remeda";
 import { atomEnhancer, DispatcherAction } from "jotai-composer";
 
-/* 1. Base atom */
+/* 1. Base atoms */
 const countAtom = atom(0);
+const actionLogger = atom<DispatcherAction<Actions, number>[]>([]);
 
-/* 2. Enhancer */
-export enum CounterAction {
-  ADD = "ADD",
-}
-const counterEnhancer = atomEnhancer(
-  // Read function
-  (get) => ({ count: get(countAtom) }),
+/* 2. Define action types */
+type Actions = "increment" | "decrement";
 
-  // Write function
-  (get, set, update: DispatcherAction<CounterAction>) => {
-    if (update.type === CounterAction.ADD) {
-      set(countAtom, get(countAtom) + 1);
-      return { shouldAbortNextSetter: true };
+/* 3. Create enhancers */
+// Action logger enhancer - tracks all actions
+const actionLoggerEnhancer = atomEnhancer<
+  { count: number; description: string },
+  DispatcherAction<Actions, number>,
+  {
+    count: number;
+    description: string;
+    lastAction: DispatcherAction<Actions, number>;
+  }
+>(
+  // Read function - adds last action to state
+  (get, { last }) => {
+    const actions = get(actionLogger);
+    const lastAction = actions[actions.length - 1];
+    return {
+      ...last,
+      lastAction,
+    };
+  },
+  // Write function - logs actions
+  (get, set, update) => {
+    const actions = get(actionLogger);
+    actions.push(update) || [];
+    set(actionLogger, [...actions]);
+    return { shouldAbortNextSetter: false };
+  },
+);
+
+// Count derivation enhancer - exposes count value
+const countEnhancerDerivation = atomEnhancer<
+  object,
+  DispatcherAction<Actions, number>,
+  { count: number }
+>((get) => ({ count: get(countAtom) }));
+
+// Description enhancer - adds human-readable description
+const descriptionDerivationEnhancer = atomEnhancer<
+  { count: number },
+  DispatcherAction<Actions, number>,
+  { description: string }
+>((get) => {
+  const count = get(countAtom);
+  return { description: `Count is ${count}` };
+});
+
+// Increment action handler
+const countEnhancerIncrement = atomEnhancer<
+  object,
+  DispatcherAction<Actions, number>,
+  object
+>(
+  (get) => ({}),
+  (get, set, update) => {
+    if (update.type === "increment") {
+      set(countAtom, get(countAtom) + (update.payload ?? 0));
+      return { shouldAbortNextSetter: false };
     }
     return { shouldAbortNextSetter: false };
   },
 );
 
-/* 2.5 Another enhancer */
-const countPlusOneEnhancer = atomEnhancer(
-  // Read function - adds a derived state
-  (get, { last }) => ({
-    countPlusOne: last.count + 1,
-  }),
-
-  // No write function needed - it's a derived state
+// Decrement action handler
+const countEnhancerDecrement = atomEnhancer<
+  object,
+  DispatcherAction<Actions, number>,
+  object
+>(
+  (get) => ({}),
+  (get, set, update) => {
+    if (update.type === "decrement") {
+      set(countAtom, get(countAtom) - (update.payload ?? 0));
+      return { shouldAbortNextSetter: false };
+    }
+    return { shouldAbortNextSetter: false };
+  },
 );
 
-/* 3. Compose */
-export const composedAtom = piped(
-  counterEnhancer,
-  countPlusOneEnhancer,
-)(undefined); // passing undefined as the initial atom
-// We pass undefined as the first atom in the composition chain.
-// This tells the enhancers to start with an empty state object.
-// Each enhancer will then add its own state properties to this object.
+// Permission enhancer - can block certain actions
+const createCountPermissionEnhancer = (fallback: ReturnType<Enhancer>) =>
+  atomEnhancer<object, DispatcherAction<Actions, number>, object>(
+    (get) => ({}),
+    async (get, set, update) => {
+      // forbid increment or decrement by 2
+      if (update.payload === 2) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return { shouldAbortNextSetter: true };
+      }
+      return { shouldAbortNextSetter: false };
+    },
+    fallback,
+  );
+const fallbackPipe = piped(actionLoggerEnhancer);
+/* 4. Compose enhancers */
+// Note: Order matters! Setters are called from last to first
+const enhanced = piped(
+  // First in pipe = last to handle actions
+  fallbackPipe,
+  // Second in pipe = second to last to handle actions
+  descriptionDerivationEnhancer,
+  // Third in pipe = third to last to handle actions
+  countEnhancerDerivation,
+  // Fourth in pipe = fourth to last to handle actions
+  countEnhancerIncrement,
+  // Fifth in pipe = fifth to last to handle actions
+  countEnhancerDecrement,
+  // Last in pipe = first to handle actions
+  createCountPermissionEnhancer(fallbackPipe(undefined)),
+)(undefined);
 
-/* 4. Use in React */
+/* 5. Use in React */
 function Counter() {
-  const [state, dispatch] = useAtom(composedAtom);
+  const [state, dispatch] = useAtom(enhanced);
 
   return (
-    <button onClick={() => dispatch({ type: CounterAction.ADD })}>
-      Count: {state.count} (Plus one: {state.countPlusOne})
-    </button>
+    <div>
+      <p>{state.description}</p>
+      <p>Last action: {state.lastAction?.type}</p>
+      <button onClick={() => dispatch({ type: "increment", payload: 1 })}>
+        Increment
+      </button>
+      <button onClick={() => dispatch({ type: "decrement", payload: 1 })}>
+        Decrement
+      </button>
+      <button onClick={() => dispatch({ type: "increment", payload: 2 })}>
+        Increment by 2 (forbidden)
+      </button>
+    </div>
   );
 }
 ```
@@ -133,9 +219,7 @@ function Counter() {
 import { atom, Getter, Setter } from "jotai";
 import { atomEnhancer, DispatcherAction } from "jotai-composer";
 
-export enum CounterAction {
-  ADD = "ADD",
-}
+type Actions = "increment" | "decrement";
 
 const countAtom = atom(0);
 
@@ -144,10 +228,10 @@ const counterEnhancer = atomEnhancer(
   (get: Getter) => ({ count: get(countAtom) }),
 
   // 2️⃣ write (optional) - handles dispatched actions
-  (get: Getter, set: Setter, update: DispatcherAction<CounterAction>) => {
-    if (update.type === CounterAction.ADD) {
-      set(countAtom, get(countAtom) + 1);
-      return { shouldAbortNextSetter: true };
+  (get: Getter, set: Setter, update: DispatcherAction<Actions>) => {
+    if (update.type === "increment") {
+      set(countAtom, get(countAtom) + (update.payload ?? 0));
+      return { shouldAbortNextSetter: false };
     }
     return { shouldAbortNextSetter: false };
   },
@@ -160,7 +244,7 @@ This internally creates an enhancer that can be composed with other enhancers.
 
 ### Precomposing with `piped`
 
-The recommended way to precompose related enhancers is using the `piped` function, which allows you to create reusable groups of enhancers:
+The recommended way to precompose related enhancers is using the `piped` function, which allows you to create reusable groups of enhancers. **Important**: The order of enhancers in the pipe matters because setters are called from last to first:
 
 ```ts
 import { piped } from "jotai-composer";
@@ -168,134 +252,70 @@ import { piped } from "jotai-composer";
 
 // Precompose related enhancers
 const baseEnhancer = piped(
-  createBase(baseAtom), // First enhancer in the chain
-  createBasePlus(1), // Second enhancer in the chain
+  // First in pipe = last to handle actions
+  createBase(baseAtom),
+  // Second in pipe = second to last to handle actions
+  createBasePlus(1),
 );
 
 // Use in main composition
 export const composedAtom = piped(
-  createCounter(counterAtom), // Counter enhancer
-  baseEnhancer, // Precomposed Base + BasePlus enhancers
-  createInputState(inputAtom, ""), // Input state management
-  modalEnhancer, // Modal functionality
+  // First in pipe = last to handle actions
+  createCounter(counterAtom),
+  // Second in pipe = second to last to handle actions
+  baseEnhancer,
+  // Third in pipe = third to last to handle actions
+  createInputState(inputAtom, ""),
+  // Last in pipe = first to handle actions
+  modalEnhancer,
 )(undefined); // Final invocation with undefined (no previous atom)
 ```
 
-This approach makes your code more modular and maintainable, especially when dealing with complex state compositions.
+This approach makes your code more modular and maintainable, especially when dealing with complex state compositions. Remember that the order of enhancers in the pipe determines the order in which their setters are called when an action is dispatched.
 
 ---
 
-### `toEnhancer`
-
-Sometimes you need to embed an **already composed** atom inside a larger
-pipeline. `toEnhancer` adapts any existing atom into an
-enhancer:
-
 ```ts
-import { toEnhancer } from "jotai-composer";
-
-const userAtomComposition = piped(
+const userPipe = piped(
   createUserProfile(profileAtom),
   createUserPreferences(preferencesAtom),
   createUserPermissions(permissionsAtom),
 )(undefined);
 
-const userEnhancer = toEnhancer({
-  composed: userAtomComposition,
-  keyString: "user", // optional – nest under `state.user`
-});
-```
-
-Use `toEnhancer` only when you need to incorporate an existing atom into your composition with a specific key structure. Unlike regular enhancers that participate in the full composition chain, `toEnhancer` creates a disconnected atom that doesn't receive the previous atom's state as a parameter.
-
----
-
-## API Reference
-
-| Function                               | Description                                                                                                                                           |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `atomEnhancer(read, write?)()`         | Creates an enhancer and starts a chain with it.                                                                                                       |
-| `atomEnhancer(read, write?)(prevAtom)` | Creates an enhancer and adds it on top of `prevAtom`.                                                                                                 |
-| `piped(...enhancers)(prevAtom?)`       | Precompose multiple enhancers into a reusable group that can be used in larger compositions.                                                          |
-| `toEnhancer({ composed, keyString? })` | Wrap an existing atom so it behaves like an enhancer. All helpers are fully typed—all your `state`, `actions` and `payloads` get inferred end-to-end. |
-
----
-
-## Example Project
-
-For a complete, runnable example see the
-[`jotai-composer-example`](https://github.com/diegodhh/jotai-compose-example)
-repo. It demonstrates **five enhancers** working together:
-
-| #   | Enhancer         | Purpose                            |
-| --- | ---------------- | ---------------------------------- |
-| 1   | Counter          | Numeric `count` + increment action |
-| 2   | Base             | Saves a `base` number              |
-| 3   | Base Plus        | Derived `basePlus = base + 1`      |
-| 4   | Input            | `value` + `SET` / `RESET` actions  |
-| 5   | Modal (composed) | `isOpen`, `modalType`, `content`   |
-
-```ts
-// Using piped for precomposition
-const baseEnhancer = piped(
-  createBase(baseAtom), // 2️⃣
-  createBasePlus(1), // 3️⃣
-);
-
-// Main composition
-const composedAtom = piped(
-  createCounter(counterAtom), // 1️⃣
-  baseEnhancer, // 2️⃣ + 3️⃣ (precomposed)
-  createInputState(inputAtom, ""), // 4️⃣
-  modalEnhancer, // 5️⃣
+// Embed the composed user atom in a larger pipeline
+const appAtom = piped(
+  createAppState(appAtom),
+  userPipe,
+  createAppSettings(settingsAtom),
 )(undefined);
 ```
-
-Resulting state shape:
-
-```ts
-{
-  count: number;
-  base: number;
-  basePlus: number;
-  value: string;
-  modal: {
-    isOpen: boolean;
-    modalType: ModalType;
-    content: string;
-  }
-}
-```
-
-Every enhancer's actions flow through the tuple returned by
-`useAtom(composedAtom)`.
 
 ---
 
 ## Best Practices
 
-1. **Single responsibility** – one slice per enhancer.
-2. **Enum actions** – ensures exhaustive checking.
-3. **Abort smartly** – return `shouldAbortNextSetter: true` when you _own_
-   the action.
-4. **Keep `read` pure** – avoid side-effects.
-5. **Persist at the edges** – wrap storage-backed atoms, not the whole
-   composition.
-6. **Use `piped` for related enhancers** – precompose logically grouped enhancers for better organization.
-7. **Reserve `toEnhancer` for specific cases** – only use when integrating an existing atom that needs a nested structure.
+1. **Order Matters**: Remember that setters are called from last to first in the pipe. This means that the first enhancer in the pipe will be the last to handle actions, and the last enhancer in the pipe will be the first to handle actions.
+
+2. **Type Safety**: Always define your action types and use them in your enhancers to ensure type safety.
+
+3. **Modularity**: Keep each enhancer focused on a single responsibility. This makes your code more maintainable and easier to test.
+
+4. **Composition**: Use `piped` to compose related enhancers together. This makes your code more modular and easier to understand.
+
+5. **Testing**: Write tests for your enhancers to ensure they work as expected. The test examples in this documentation show how to test your enhancers.
 
 ---
 
 ## Troubleshooting
 
-| Symptom              | Checklist                                              |
-| -------------------- | ------------------------------------------------------ |
-| Action ignored       | Is the enhancer in the pipeline? Enum value correct?   |
-| State doesn't update | Did you forget `shouldAbortNextSetter: true`?          |
-| Type errors          | Check `DispatcherAction` payload / enum / state types. |
+1. **Setters not being called**: Remember that setters are called from last to first in the pipe. If your setter is not being called, check the order of your enhancers in the pipe.
+
+2. **Type errors**: Make sure you have defined your action types correctly and are using them in your enhancers.
+
+3. **State not updating**: Check that your enhancers are returning the correct state shape and that your setters are being called in the correct order.
 
 ---
 
 ## License
 
-MIT © [Diego Herrero](https://github.com/diegodhh)
+MIT © [Diego Hernández](https://github.com/diegodhh)

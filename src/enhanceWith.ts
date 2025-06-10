@@ -46,20 +46,21 @@ export const enhanceWith =
           })) || {};
         if (!shouldAbortNextSetter) {
           if (lastAtom) {
-            set(lastAtom, update as TParameter);
+            return set(lastAtom, update as TParameter);
           }
         } else {
           if (fallbackAtom) {
-            set(fallbackAtom, update as TParameter);
+            return set(fallbackAtom, update as TParameter);
           }
         }
+        return { shouldAbortNextSetter };
       },
     );
     return newAtom;
   };
 
 export type Enhancer<
-  TLastState extends object,
-  TParameterExtended extends object = never,
-  TResult extends object = never,
+  TLastState extends object = object,
+  TParameterExtended extends object = object,
+  TResult extends object = object,
 > = ReturnType<typeof enhanceWith<TLastState, TParameterExtended, TResult>>;

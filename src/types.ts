@@ -27,7 +27,15 @@ export type DispatcherAction<T extends string = string, TPayload = unknown> = {
 export type ComposableAtom<
   TState extends object = object,
   TParamter extends object = object,
-> = WritableAtom<TState, [update: TParamter], Promise<void>>;
+> = WritableAtom<
+  TState,
+  [update: TParamter],
+  Promise<
+    | void
+    | { shouldAbortNextSetter?: boolean }
+    | { shouldAbortNextSetter?: boolean }
+  >
+>;
 
 export type InferParameterFromComposable<T extends ComposableAtom<any, any>> =
   T extends ComposableAtom<any, infer TParameter> ? TParameter : never;
