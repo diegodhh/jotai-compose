@@ -318,4 +318,4 @@ const appAtom = piped(
 
 ## License
 
-MIT © [Diego Hernández](https://github.com/diegodhh)
+MIT © [Diego Herrero](https://github.com/diegodhh)
