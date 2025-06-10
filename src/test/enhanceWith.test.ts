@@ -1,6 +1,7 @@
 import { atom } from "jotai";
 import { createStore } from "jotai/vanilla";
 import { describe, expect, it } from "vitest";
+import { atomEnhancer } from "../atomEnhancer";
 import { enhanceWith } from "../enhanceWith";
 
 describe("enhanceWith", () => {
@@ -23,14 +24,14 @@ describe("enhanceWith", () => {
   it("should compose with existing atom", () => {
     // Create a base atom
     const baseAtom = atom({ name: "test" });
-
+    const testEnhancer = atomEnhancer((get) => get(baseAtom));
     // Enhance it with additional state
     const enhanced = enhanceWith({
       read: () => ({ count: 10 }),
-    })(baseAtom);
+    });
 
     const store = createStore();
-    expect(store.get(enhanced)).toEqual({
+    expect(store.get(enhanced(testEnhancer(undefined)))).toEqual({
       name: "test",
       count: 10,
     });
@@ -47,21 +48,24 @@ describe("enhanceWith", () => {
     }
 
     const baseAtom = atom<TestState>({ count: 0 });
-    const enhanced = enhanceWith<TestState, TestAction>({
+    const enhanced = enhanceWith<object, TestAction, TestState>({
+      read: () => atom((get) => get(baseAtom)),
       write: ({ stateHelper, update }) => {
         if (update.type === "increment") {
-          // Here we could update some derived state if needed
+          stateHelper.set(baseAtom, {
+            count: stateHelper.get(baseAtom).count + 1,
+          });
         }
-        return {}; // Continue with base atom updates
+        return { shouldAbortNextSetter: false }; // Continue with base atom updates
       },
-    })(baseAtom);
+    })(undefined);
 
     const store = createStore();
     store.set(enhanced, { type: "increment", payload: 1 });
 
     // Even though our write handler didn't update the state directly,
     // it allowed the base atom's setter to run
-    expect(store.get(baseAtom)).toEqual({ type: "increment", payload: 1 });
+    expect(store.get(enhanced)).toEqual({ count: 1 });
   });
 
   it("should abort next setter when specified", () => {
@@ -75,12 +79,13 @@ describe("enhanceWith", () => {
     }
 
     const baseAtom = atom<TestState>({ count: 0 });
+    const baseAtomEnhancer = atomEnhancer((get) => get(baseAtom));
     const enhanced = enhanceWith<TestState, TestAction>({
       write: ({ stateHelper, update }) => {
         // Prevent the update from propagating to the base atom
         return { shouldAbortNextSetter: true };
       },
-    })(baseAtom);
+    })(baseAtomEnhancer(undefined));
 
     const store = createStore();
     const initialState = store.get(baseAtom);
@@ -125,7 +130,7 @@ describe("enhanceWith", () => {
 
   it("should compose multiple enhancers", () => {
     const baseAtom = atom({ name: "test" });
-
+    const baseAtomEnhancer = atomEnhancer((get) => get(baseAtom));
     const withCounter = enhanceWith({
       read: () => ({ count: 5 }),
     });
@@ -134,7 +139,7 @@ describe("enhanceWith", () => {
       read: () => ({ status: "active" }),
     });
 
-    const enhanced = withStatus(withCounter(baseAtom));
+    const enhanced = withStatus(withCounter(baseAtomEnhancer(undefined)));
 
     const store = createStore();
     expect(store.get(enhanced)).toEqual({

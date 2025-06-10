@@ -15,7 +15,9 @@ export type AtomEnhancerWrite<
   set: Setter,
   update: TParameter,
   { last }: StateTracking<TLastState>,
-) => { shouldAbortNextSetter?: boolean };
+) =>
+  | Promise<{ shouldAbortNextSetter?: boolean }>
+  | { shouldAbortNextSetter?: boolean };
 
 export type DispatcherAction<T extends string = string, TPayload = unknown> = {
   type: T;
@@ -25,7 +27,7 @@ export type DispatcherAction<T extends string = string, TPayload = unknown> = {
 export type ComposableAtom<
   TState extends object = object,
   TParamter extends object = object,
-> = WritableAtom<TState, [update: TParamter], void>;
+> = WritableAtom<TState, [update: TParamter], Promise<void>>;
 
 export type InferParameterFromComposable<T extends ComposableAtom<any, any>> =
   T extends ComposableAtom<any, infer TParameter> ? TParameter : never;
@@ -57,13 +59,16 @@ type AtomHelpers = {
   set: Setter;
 };
 
+/// comment asdas
 export type ComposableAtomWriterWithLastState<
   TLastState extends object,
   TParameter extends object,
 > = (param: {
   stateHelper: StateTracking<TLastState> & AtomHelpers;
   update: TParameter;
-}) => { shouldAbortNextSetter?: boolean };
+}) =>
+  | Promise<{ shouldAbortNextSetter?: boolean }>
+  | { shouldAbortNextSetter?: boolean };
 
 export type AtomEnhancer<
   TLastState extends object,

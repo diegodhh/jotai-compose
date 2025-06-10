@@ -39,8 +39,8 @@ export const composedToEnhancer = <
         })) as Atom<Enhanced>;
       }
     },
-    write: ({ stateHelper: { set }, update }) => {
-      set(composed, update);
+    write: async ({ stateHelper: { set }, update }) => {
+      await set(composed, update);
       return { shouldAbortNextSetter: false };
     },
   };

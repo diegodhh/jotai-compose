@@ -9,7 +9,7 @@ export const enhanceWith =
     TResult extends object = never,
   >({
     read = () => ({}) as TResult,
-    write = () => ({ shouldAbortNextSetter: false }),
+    write = () => Promise.resolve({ shouldAbortNextSetter: false }),
   }: AtomEnhancer<TLastState, TParameterExtended, TResult>) =>
   <TState extends TLastState, TParameter extends object = never>(
     lastAtom?: ComposableAtom<TState, TParameter>,
@@ -33,17 +33,17 @@ export const enhanceWith =
           ...notAtom,
         };
       },
-      (get, set, update: TParameterExtended | TParameter) => {
+      async (get, set, update: TParameterExtended | TParameter) => {
         const last = lastAtom ? get(lastAtom) : ({} as TLastState & TState);
         const { shouldAbortNextSetter } =
-          write({
+          (await write({
             stateHelper: {
               last,
               get,
               set,
             },
             update: update as TParameterExtended,
-          }) || {};
+          })) || {};
         if (!shouldAbortNextSetter) {
           if (lastAtom) {
             set(lastAtom, update as TParameter);
