@@ -15,8 +15,6 @@ describe("atomEnhancer", () => {
     { count: number; description: string },
     DispatcherAction<Actions, number>,
     {
-      count: number;
-      description: string;
       lastAction: DispatcherAction<Actions, number>;
     }
   >(
@@ -24,7 +22,6 @@ describe("atomEnhancer", () => {
       const actions = get(actionLogger);
       const lastAction = actions[actions.length - 1];
       return {
-        ...last,
         lastAction,
       };
     },
@@ -91,17 +88,16 @@ describe("atomEnhancer", () => {
     { count: number },
     DispatcherAction<Actions, number>,
     { description: string }
-  >((get) => {
-    const count = get(countAtom);
-    return { description: `Count is ${count}` };
+  >((get, { last }) => {
+    return { description: `Count is ${last?.count ?? 0}` };
   });
   const enhanced = piped(
     falbackPipe,
-    descriptionDerivationEnhancer,
-    countEnhancerDerivation,
     countEnhancerIncrement,
     countEnhancerDecrement,
     createCountPermissionEnhancer(falbackPipe(undefined)),
+    countEnhancerDerivation,
+    descriptionDerivationEnhancer,
   )(undefined);
 
   it("should initialize with correct state", () => {

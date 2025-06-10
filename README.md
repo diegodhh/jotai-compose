@@ -115,9 +115,8 @@ const descriptionDerivationEnhancer = atomEnhancer<
   { count: number },
   DispatcherAction<Actions, number>,
   { description: string }
->((get) => {
-  const count = get(countAtom);
-  return { description: `Count is ${count}` };
+>((get, { last }) => {
+  return { description: `Count is ${last?.count ?? 0}` };
 });
 
 // Increment action handler
@@ -170,18 +169,12 @@ const fallbackPipe = piped(actionLoggerEnhancer);
 /* 4. Compose enhancers */
 // Note: Order matters! Setters are called from last to first
 const enhanced = piped(
-  // First in pipe = last to handle actions
-  fallbackPipe,
-  // Second in pipe = second to last to handle actions
-  descriptionDerivationEnhancer,
-  // Third in pipe = third to last to handle actions
-  countEnhancerDerivation,
-  // Fourth in pipe = fourth to last to handle actions
+  falbackPipe,
   countEnhancerIncrement,
-  // Fifth in pipe = fifth to last to handle actions
   countEnhancerDecrement,
-  // Last in pipe = first to handle actions
-  createCountPermissionEnhancer(fallbackPipe(undefined)),
+  createCountPermissionEnhancer(falbackPipe(undefined)),
+  countEnhancerDerivation,
+  descriptionDerivationEnhancer,
 )(undefined);
 
 /* 5. Use in React */
