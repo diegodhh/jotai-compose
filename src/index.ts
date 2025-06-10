@@ -12,7 +12,6 @@ import {
 } from "./types";
 export { atomEnhancer } from "./atomEnhancer";
 export { enhanceWith } from "./enhanceWith";
-export { toEnhancer } from "./toEnhancer";
 export type {
   AtomEnhancer,
   AtomEnhancerRead,
